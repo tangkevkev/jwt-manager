@@ -8,7 +8,7 @@ A minimal tool for working with JSON Web Tokens — runs entirely in your browse
 
 Paste a JWT and instantly see its decoded header and payload in a readable format. The expiry claim is highlighted so you can tell at a glance whether a token is still valid.
 
-Tokens you decode are saved to a local history so you can come back to them later. Recent tokens expire automatically after 24 hours. Tokens you explicitly save are kept permanently and can be given a custom name.
+Tokens you decode are saved to a local history so you can come back to them later. You can bookmark any token to keep it in a dedicated Saved section, and give it a custom name for easy identification.
 
 ## Key properties
 

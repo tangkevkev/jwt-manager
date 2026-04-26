@@ -66,12 +66,6 @@ export function deleteFromHistory(id: string): void {
   persist(load().filter((e) => e.id !== id))
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000
-
-export function pruneTemporaryEntries(): void {
-  const cutoff = Date.now() - DAY_MS
-  persist(load().filter((e) => e.saved || e.savedAt >= cutoff))
-}
 
 export function saveEntry(id: string): void {
   const entries = load()

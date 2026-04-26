@@ -1,6 +1,6 @@
 import './style.css'
 import { decodeJwt } from './lib/decode'
-import { saveToHistory, getHistory, deleteFromHistory, pruneTemporaryEntries, saveEntry, renameEntry } from './lib/history-store'
+import { saveToHistory, getHistory, deleteFromHistory, saveEntry, renameEntry } from './lib/history-store'
 import { renderDecodeOutput, clearDecodeOutput } from './ui/decode-view'
 import { renderHistoryPanel } from './ui/history-panel'
 import { searchHistory } from './lib/history-search'
@@ -198,5 +198,4 @@ function handleInput(): void {
 
 input.addEventListener('input', handleInput)
 historySearch.addEventListener('input', handleSearch)
-pruneTemporaryEntries()
 refreshHistory()

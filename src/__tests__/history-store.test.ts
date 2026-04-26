@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { saveToHistory, getHistory, deleteFromHistory, pruneTemporaryEntries, saveEntry, renameEntry } from '../lib/history-store'
+import { saveToHistory, getHistory, deleteFromHistory, saveEntry, renameEntry } from '../lib/history-store'
 import type { DecodedJwt } from '../lib/decode'
 
 const store: Record<string, string> = {}
@@ -114,32 +114,6 @@ describe('historyStore', () => {
     expect(getHistory()[0].saved).toBe(false)
   })
 
-  describe('pruneTemporaryEntries', () => {
-    it('removes temporary entries older than 24h', () => {
-      saveToHistory(jwt1)
-      const entries = getHistory()
-      entries[0].savedAt = Date.now() - 25 * 60 * 60 * 1000
-      store['jwt-manager-history'] = JSON.stringify(entries)
-      pruneTemporaryEntries()
-      expect(getHistory()).toHaveLength(0)
-    })
-
-    it('keeps saved entries regardless of age', () => {
-      saveToHistory(jwt1)
-      saveEntry(getHistory()[0].id)
-      const entries = getHistory()
-      entries[0].savedAt = Date.now() - 25 * 60 * 60 * 1000
-      store['jwt-manager-history'] = JSON.stringify(entries)
-      pruneTemporaryEntries()
-      expect(getHistory()).toHaveLength(1)
-    })
-
-    it('keeps recent temporary entries', () => {
-      saveToHistory(jwt1)
-      pruneTemporaryEntries()
-      expect(getHistory()).toHaveLength(1)
-    })
-  })
 
   describe('saveEntry', () => {
     it('promotes entry to saved', () => {
