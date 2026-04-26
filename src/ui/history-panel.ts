@@ -20,12 +20,18 @@ function expiryBadge(entry: HistoryEntry): string {
 }
 
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, {
+  const d = new Date(ts)
+  const datePart = d.toLocaleDateString(undefined, {
+    weekday: 'short',
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
+  })
+  const timePart = d.toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
   })
+  return `${datePart} · ${timePart}`
 }
 
 function renderEntry(entry: HistoryEntry, isNew = false): string {
@@ -44,8 +50,7 @@ function renderEntry(entry: HistoryEntry, isNew = false): string {
                 ? `<input
                     data-rename
                     type="text"
-                    value=""
-                    placeholder="${escapeHtml(displayLabel)}"
+                    value="${escapeHtml(displayLabel)}"
                     class="flex-1 bg-transparent text-sm text-gray-200 border-b border-blue-500 outline-none min-w-0 max-w-[160px]"
                   />`
                 : `<span data-label class="text-sm text-gray-200 truncate max-w-[160px]">${escapeHtml(displayLabel)}</span>
@@ -58,7 +63,7 @@ function renderEntry(entry: HistoryEntry, isNew = false): string {
             }
             ${expiryBadge(entry)}
           </div>
-          <span class="text-xs text-gray-500">${formatDate(entry.savedAt)}</span>
+          <span class="text-xs text-gray-500">${formatDate(entry.addedAt ?? entry.savedAt)}</span>
         </div>
         <button
           data-delete
@@ -80,7 +85,7 @@ function renderEntry(entry: HistoryEntry, isNew = false): string {
           <span class="text-sm text-gray-400 truncate max-w-[130px]">${escapeHtml(displayLabel)}</span>
           ${expiryBadge(entry)}
         </div>
-        <span class="text-xs text-gray-600">${formatDate(entry.savedAt)}</span>
+        <span class="text-xs text-gray-600">${formatDate(entry.addedAt ?? entry.savedAt)}</span>
       </div>
       <button
         data-bookmark

@@ -5,6 +5,7 @@ export interface HistoryEntry {
   raw: string
   label: string
   savedAt: number
+  addedAt: number
   exp?: number
   iat?: number
   saved: boolean
@@ -25,7 +26,7 @@ function load(): HistoryEntry[] {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (!stored) return []
     const parsed = JSON.parse(stored) as HistoryEntry[]
-    return parsed.map((e) => ({ ...e, saved: e.saved ?? false }))
+    return parsed.map((e) => ({ ...e, saved: e.saved ?? false, addedAt: e.addedAt ?? e.savedAt }))
   } catch {
     return []
   }
@@ -43,11 +44,13 @@ export function saveToHistory(jwt: DecodedJwt): HistoryEntry {
   const entries = load()
   const existingIndex = entries.findIndex((e) => e.raw === jwt.raw)
   const existing = existingIndex >= 0 ? entries[existingIndex] : undefined
+  const now = Date.now()
   const entry: HistoryEntry = {
     id: existing ? existing.id : crypto.randomUUID(),
     raw: jwt.raw,
     label: deriveLabel(jwt),
-    savedAt: Date.now(),
+    savedAt: now,
+    addedAt: existing ? existing.addedAt : now,
     exp: typeof jwt.payload.exp === 'number' ? jwt.payload.exp : undefined,
     iat: typeof jwt.payload.iat === 'number' ? jwt.payload.iat : undefined,
     saved: existing ? existing.saved : false,

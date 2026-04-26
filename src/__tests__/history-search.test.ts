@@ -9,10 +9,12 @@ function makeRaw(payload: object): string {
 }
 
 function makeEntry(overrides: Partial<HistoryEntry> & { raw: string }): HistoryEntry {
+  const now = Date.now()
   return {
     id: crypto.randomUUID(),
     label: 'label',
-    savedAt: Date.now(),
+    savedAt: now,
+    addedAt: now,
     saved: false,
     ...overrides,
   }

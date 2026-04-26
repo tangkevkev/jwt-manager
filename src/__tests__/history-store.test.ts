@@ -114,6 +114,29 @@ describe('historyStore', () => {
     expect(getHistory()[0].saved).toBe(false)
   })
 
+  it('sets addedAt on first save', () => {
+    saveToHistory(jwt1)
+    const entry = getHistory()[0]
+    expect(entry.addedAt).toBeGreaterThan(0)
+  })
+
+  it('preserves addedAt on re-save of same token', async () => {
+    saveToHistory(jwt1)
+    const originalAddedAt = getHistory()[0].addedAt
+
+    await new Promise<void>((r) => setTimeout(r, 10))
+
+    saveToHistory(jwt1)
+    expect(getHistory()[0].addedAt).toBe(originalAddedAt)
+  })
+
+  it('falls back to savedAt for entries without addedAt (backward compat)', () => {
+    const ts = Date.now()
+    const legacy = [{ id: '1', raw: 'a.b.c', label: 'test', savedAt: ts, saved: false }]
+    store['jwt-manager-history'] = JSON.stringify(legacy)
+    expect(getHistory()[0].addedAt).toBe(ts)
+  })
+
 
   describe('saveEntry', () => {
     it('promotes entry to saved', () => {
