@@ -1,1 +1,1 @@
-{"root":["./src/main.ts","./src/__tests__/decode.test.ts","./src/__tests__/history-store.test.ts","./src/lib/decode.ts","./src/lib/history-store.ts","./src/ui/decode-view.ts","./src/ui/history-panel.ts"],"version":"5.9.3"}
+{"root":["./src/main.ts","./src/__tests__/decode.test.ts","./src/__tests__/history-search.test.ts","./src/__tests__/history-store.test.ts","./src/lib/decode.ts","./src/lib/history-search.ts","./src/lib/history-store.ts","./src/ui/decode-view.ts","./src/ui/history-panel.ts","./src/ui/search-results-view.ts"],"version":"5.9.3"}

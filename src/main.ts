@@ -3,6 +3,8 @@ import { decodeJwt } from './lib/decode'
 import { saveToHistory, getHistory, deleteFromHistory, pruneTemporaryEntries, saveEntry, renameEntry } from './lib/history-store'
 import { renderDecodeOutput, clearDecodeOutput } from './ui/decode-view'
 import { renderHistoryPanel } from './ui/history-panel'
+import { searchHistory } from './lib/history-search'
+import { renderSearchResults } from './ui/search-results-view'
 
 const app = document.getElementById('app')!
 
@@ -11,6 +13,16 @@ app.innerHTML = `
     <aside class="h-40 md:h-auto md:w-72 md:flex-shrink-0 border-t md:border-t-0 md:border-r border-gray-800 flex flex-col overflow-hidden">
       <div class="px-4 py-2 border-b border-gray-800 flex-shrink-0 hidden md:block">
         <h1 class="text-sm font-semibold text-gray-100">JWT Manager</h1>
+      </div>
+      <div class="px-3 py-2 border-b border-gray-800 flex-shrink-0">
+        <input
+          id="history-search"
+          type="search"
+          placeholder="Search history…"
+          class="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500"
+          autocomplete="off"
+          spellcheck="false"
+        />
       </div>
       <div id="history-list" class="flex-1 overflow-y-auto"></div>
     </aside>
@@ -60,8 +72,10 @@ const containers = {
 }
 
 const historyList = document.getElementById('history-list')!
+const historySearch = document.getElementById('history-search') as HTMLInputElement
 
 let currentRaw = ''
+let currentQuery = ''
 
 function showTokenBar(raw: string): void {
   currentRaw = raw
@@ -131,6 +145,39 @@ function refreshHistory(savedId?: string): void {
   )
 }
 
+function showDecodeView(): void {
+  containers.header.classList.remove('hidden')
+  containers.signature.classList.remove('hidden')
+}
+
+function hideDecodeView(): void {
+  containers.header.classList.add('hidden')
+  containers.signature.classList.add('hidden')
+}
+
+function handleSearch(): void {
+  currentQuery = historySearch.value
+  if (!currentQuery.trim()) {
+    showDecodeView()
+    if (currentRaw) {
+      renderDecodeOutput(containers, decodeJwt(currentRaw))
+    } else {
+      clearDecodeOutput(containers)
+    }
+    return
+  }
+  hideDecodeView()
+  const results = searchHistory(getHistory(), currentQuery)
+  renderSearchResults(containers.payload, results, currentQuery, (raw) => {
+    historySearch.value = ''
+    currentQuery = ''
+    showDecodeView()
+    hideTokenBar()
+    input.value = raw
+    handleInput()
+  })
+}
+
 function handleInput(): void {
   const token = input.value.trim()
   if (!token) {
@@ -150,5 +197,6 @@ function handleInput(): void {
 }
 
 input.addEventListener('input', handleInput)
+historySearch.addEventListener('input', handleSearch)
 pruneTemporaryEntries()
 refreshHistory()
