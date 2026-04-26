@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { saveToHistory, getHistory, deleteFromHistory } from '../lib/history-store'
+import { saveToHistory, getHistory, deleteFromHistory, pruneTemporaryEntries, saveEntry, renameEntry } from '../lib/history-store'
 import type { DecodedJwt } from '../lib/decode'
 
 const store: Record<string, string> = {}
@@ -101,5 +101,81 @@ describe('historyStore', () => {
     saveToHistory(jwt1)
     expect(getHistory()).toHaveLength(1)
     expect(getHistory()[0].raw).toBe(jwt1.raw)
+  })
+
+  it('new entries default to saved: false', () => {
+    saveToHistory(jwt1)
+    expect(getHistory()[0].saved).toBe(false)
+  })
+
+  it('treats missing saved field as false (backward compat)', () => {
+    const legacy = [{ id: '1', raw: 'a.b.c', label: 'test', savedAt: Date.now() }]
+    store['jwt-manager-history'] = JSON.stringify(legacy)
+    expect(getHistory()[0].saved).toBe(false)
+  })
+
+  describe('pruneTemporaryEntries', () => {
+    it('removes temporary entries older than 24h', () => {
+      saveToHistory(jwt1)
+      const entries = getHistory()
+      entries[0].savedAt = Date.now() - 25 * 60 * 60 * 1000
+      store['jwt-manager-history'] = JSON.stringify(entries)
+      pruneTemporaryEntries()
+      expect(getHistory()).toHaveLength(0)
+    })
+
+    it('keeps saved entries regardless of age', () => {
+      saveToHistory(jwt1)
+      saveEntry(getHistory()[0].id)
+      const entries = getHistory()
+      entries[0].savedAt = Date.now() - 25 * 60 * 60 * 1000
+      store['jwt-manager-history'] = JSON.stringify(entries)
+      pruneTemporaryEntries()
+      expect(getHistory()).toHaveLength(1)
+    })
+
+    it('keeps recent temporary entries', () => {
+      saveToHistory(jwt1)
+      pruneTemporaryEntries()
+      expect(getHistory()).toHaveLength(1)
+    })
+  })
+
+  describe('saveEntry', () => {
+    it('promotes entry to saved', () => {
+      saveToHistory(jwt1)
+      const id = getHistory()[0].id
+      saveEntry(id)
+      expect(getHistory()[0].saved).toBe(true)
+    })
+
+    it('is a no-op for unknown id', () => {
+      saveToHistory(jwt1)
+      saveEntry('unknown-id')
+      expect(getHistory()).toHaveLength(1)
+    })
+  })
+
+  describe('renameEntry', () => {
+    it('updates the name of an entry', () => {
+      saveToHistory(jwt1)
+      const id = getHistory()[0].id
+      renameEntry(id, 'My Token')
+      expect(getHistory()[0].name).toBe('My Token')
+    })
+
+    it('ignores empty name', () => {
+      saveToHistory(jwt1)
+      const id = getHistory()[0].id
+      renameEntry(id, 'My Token')
+      renameEntry(id, '   ')
+      expect(getHistory()[0].name).toBe('My Token')
+    })
+
+    it('is a no-op for unknown id', () => {
+      saveToHistory(jwt1)
+      renameEntry('unknown-id', 'Test')
+      expect(getHistory()[0].name).toBeUndefined()
+    })
   })
 })

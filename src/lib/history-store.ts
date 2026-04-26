@@ -7,6 +7,8 @@ export interface HistoryEntry {
   savedAt: number
   exp?: number
   iat?: number
+  saved: boolean
+  name?: string
 }
 
 const STORAGE_KEY = 'jwt-manager-history'
@@ -21,7 +23,9 @@ function deriveLabel(jwt: DecodedJwt): string {
 function load(): HistoryEntry[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    return stored ? (JSON.parse(stored) as HistoryEntry[]) : []
+    if (!stored) return []
+    const parsed = JSON.parse(stored) as HistoryEntry[]
+    return parsed.map((e) => ({ ...e, saved: e.saved ?? false }))
   } catch {
     return []
   }
@@ -38,13 +42,16 @@ export function getHistory(): HistoryEntry[] {
 export function saveToHistory(jwt: DecodedJwt): HistoryEntry {
   const entries = load()
   const existingIndex = entries.findIndex((e) => e.raw === jwt.raw)
+  const existing = existingIndex >= 0 ? entries[existingIndex] : undefined
   const entry: HistoryEntry = {
-    id: existingIndex >= 0 ? entries[existingIndex].id : crypto.randomUUID(),
+    id: existing ? existing.id : crypto.randomUUID(),
     raw: jwt.raw,
     label: deriveLabel(jwt),
     savedAt: Date.now(),
     exp: typeof jwt.payload.exp === 'number' ? jwt.payload.exp : undefined,
     iat: typeof jwt.payload.iat === 'number' ? jwt.payload.iat : undefined,
+    saved: existing ? existing.saved : false,
+    name: existing ? existing.name : undefined,
   }
   if (existingIndex >= 0) {
     entries[existingIndex] = entry
@@ -57,4 +64,28 @@ export function saveToHistory(jwt: DecodedJwt): HistoryEntry {
 
 export function deleteFromHistory(id: string): void {
   persist(load().filter((e) => e.id !== id))
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+export function pruneTemporaryEntries(): void {
+  const cutoff = Date.now() - DAY_MS
+  persist(load().filter((e) => e.saved || e.savedAt >= cutoff))
+}
+
+export function saveEntry(id: string): void {
+  const entries = load()
+  const index = entries.findIndex((e) => e.id === id)
+  if (index < 0) return
+  entries[index] = { ...entries[index], saved: true }
+  persist(entries)
+}
+
+export function renameEntry(id: string, name: string): void {
+  if (!name.trim()) return
+  const entries = load()
+  const index = entries.findIndex((e) => e.id === id)
+  if (index < 0) return
+  entries[index] = { ...entries[index], name: name.trim() }
+  persist(entries)
 }

@@ -1,3 +1,5 @@
+## MODIFIED Requirements
+
 ### Requirement: User can paste and decode a JWT
 The system SHALL accept a raw JWT string input and decode its header and payload, displaying both as formatted JSON without requiring an internet connection or server call. On desktop, the input field and decoded output panels SHALL be displayed side by side. The payload panel SHALL be visually dominant over the header and signature panels.
 
