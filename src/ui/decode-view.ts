@@ -20,7 +20,7 @@ function renderJson(obj: Record<string, unknown>, highlightExp?: number, promine
   return `<pre class="${fontSize} font-mono leading-relaxed whitespace-pre-wrap break-all text-gray-200">${rendered.join('\n')}</pre>`
 }
 
-function card(title: string, body: string, badge?: string, prominent = false): string {
+function card(title: string, body: string, badge?: string, prominent = false, copyBtn = false): string {
   const padding = prominent ? 'p-6' : 'p-3'
   const titleColor = prominent ? 'text-gray-300' : 'text-gray-600'
   const accentBorder = prominent ? 'border-l-2 border-blue-500' : ''
@@ -29,6 +29,7 @@ function card(title: string, body: string, badge?: string, prominent = false): s
       <div class="flex items-center gap-2 px-4 py-2 bg-gray-900 border-b border-gray-800">
         <span class="text-xs font-semibold uppercase tracking-wider ${titleColor}">${title}</span>
         ${badge ? `<span class="text-xs px-2 py-0.5 rounded-full border border-yellow-700 bg-yellow-950 text-yellow-300">${badge}</span>` : ''}
+        ${copyBtn ? `<button data-copy-payload class="ml-auto text-xs text-gray-500 hover:text-gray-200 px-2 py-0.5 rounded hover:bg-gray-800 transition-colors">Copy</button>` : ''}
       </div>
       <div class="${padding} bg-gray-950">${body}</div>
     </div>
@@ -52,8 +53,18 @@ export function renderDecodeOutput(containers: DecodeContainers, result: DecodeR
   const { header, payload, signature } = result.value
   const exp = typeof payload.exp === 'number' ? payload.exp : undefined
 
-  containers.payload.innerHTML = card('Payload', renderJson(payload, exp, true), undefined, true)
+  containers.payload.innerHTML = card('Payload', renderJson(payload, exp, true), undefined, true, true)
   containers.header.innerHTML = card('Header', renderJson(header))
+
+  const copyBtn = containers.payload.querySelector<HTMLButtonElement>('[data-copy-payload]')
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(JSON.stringify(payload, null, 2)).then(() => {
+        copyBtn.textContent = 'Copied!'
+        setTimeout(() => { copyBtn.textContent = 'Copy' }, 1500)
+      })
+    })
+  }
   containers.signature.innerHTML = card(
     'Signature',
     `<p class="text-xs font-mono text-gray-400 break-all">${escapeHtml(signature)}</p>`,
