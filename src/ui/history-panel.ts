@@ -1,7 +1,7 @@
 import type { HistoryEntry } from '../lib/history-store'
 
 interface Callbacks {
-  onSelect: (raw: string) => void
+  onSelect: (id: string, raw: string) => void
   onDelete: (id: string) => void
   onSave: (id: string) => void
   onRename: (id: string, name: string) => void
@@ -34,12 +34,14 @@ function formatDate(ts: number): string {
   return `${datePart} · ${timePart}`
 }
 
-function renderEntry(entry: HistoryEntry, isNew = false): string {
+function renderEntry(entry: HistoryEntry, isNew = false, isActive = false): string {
   const displayLabel = entry.name || entry.label
+  const activeClasses = isActive ? 'bg-blue-950 border-l-2 border-blue-500' : ''
+
   if (entry.saved) {
     return `
       <div
-        class="group flex items-start gap-2 px-4 py-3 border-b border-gray-800 hover:bg-gray-900 cursor-pointer"
+        class="group flex items-start gap-2 px-4 py-3 border-b border-gray-800 hover:bg-gray-900 cursor-pointer ${activeClasses}"
         data-id="${entry.id}"
         data-saved
       >
@@ -51,14 +53,14 @@ function renderEntry(entry: HistoryEntry, isNew = false): string {
                     data-rename
                     type="text"
                     value="${escapeHtml(displayLabel)}"
-                    class="flex-1 bg-transparent text-sm text-gray-200 border-b border-blue-500 outline-none min-w-0 max-w-[160px]"
+                    class="flex-1 bg-transparent text-sm text-gray-200 border-b border-blue-500 outline-none min-w-0"
                   />`
-                : `<span data-label class="text-sm text-gray-200 truncate max-w-[160px]">${escapeHtml(displayLabel)}</span>
+                : `<span data-label class="text-sm text-gray-200 break-words">${escapeHtml(displayLabel)}</span>
                    <input
                     data-rename
                     type="text"
                     value="${escapeHtml(displayLabel)}"
-                    class="hidden flex-1 bg-transparent text-sm text-gray-200 border-b border-blue-500 outline-none min-w-0 max-w-[160px]"
+                    class="hidden flex-1 bg-transparent text-sm text-gray-200 border-b border-blue-500 outline-none min-w-0"
                   />`
             }
             ${expiryBadge(entry)}
@@ -77,12 +79,12 @@ function renderEntry(entry: HistoryEntry, isNew = false): string {
 
   return `
     <div
-      class="group flex items-start gap-2 px-4 py-3 border-b border-gray-800 hover:bg-gray-900 cursor-pointer"
+      class="group flex items-start gap-2 px-4 py-3 border-b border-gray-800 hover:bg-gray-900 cursor-pointer ${activeClasses}"
       data-id="${entry.id}"
     >
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-0.5 flex-wrap">
-          <span class="text-sm text-gray-400 truncate max-w-[130px]">${escapeHtml(displayLabel)}</span>
+          <span class="text-sm text-gray-400 break-words">${escapeHtml(displayLabel)}</span>
           ${expiryBadge(entry)}
         </div>
         <span class="text-xs text-gray-600">${formatDate(entry.addedAt ?? entry.savedAt)}</span>
@@ -114,6 +116,7 @@ export function renderHistoryPanel(
   entries: HistoryEntry[],
   callbacks: Callbacks,
   newlySavedId?: string,
+  activeEntryId?: string | null,
 ): void {
   if (entries.length === 0) {
     container.innerHTML = `
@@ -131,11 +134,11 @@ export function renderHistoryPanel(
   let html = ''
   if (saved.length > 0) {
     html += sectionHeader('Saved')
-    html += saved.map((e) => renderEntry(e, e.id === newlySavedId)).join('')
+    html += saved.map((e) => renderEntry(e, e.id === newlySavedId, e.id === activeEntryId)).join('')
   }
   if (recent.length > 0) {
     html += sectionHeader('Recent')
-    html += recent.map((e) => renderEntry(e)).join('')
+    html += recent.map((e) => renderEntry(e, false, e.id === activeEntryId)).join('')
   }
   container.innerHTML = html
 
@@ -164,7 +167,7 @@ export function renderHistoryPanel(
         }
         return
       }
-      callbacks.onSelect(entry.raw)
+      callbacks.onSelect(entry.id, entry.raw)
     })
 
     if (renameInput) {

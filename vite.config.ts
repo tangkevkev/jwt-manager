@@ -4,6 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: '/jwt-manager/',
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
   plugins: [
     tailwindcss(),
     VitePWA({

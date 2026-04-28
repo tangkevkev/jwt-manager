@@ -1,6 +1,7 @@
 import './style.css'
 import { decodeJwt } from './lib/decode'
 import { saveToHistory, getHistory, deleteFromHistory, saveEntry, renameEntry } from './lib/history-store'
+import type { HistoryEntry } from './lib/history-store'
 import { renderDecodeOutput, clearDecodeOutput } from './ui/decode-view'
 import { renderHistoryPanel } from './ui/history-panel'
 import { searchHistory } from './lib/history-search'
@@ -27,8 +28,13 @@ app.innerHTML = `
       <div id="history-list" class="flex-1 overflow-y-auto"></div>
     </aside>
     <main class="flex-1 grid grid-cols-1 md:grid-cols-[1fr_20rem] overflow-hidden min-h-0">
-      <!-- Left: payload only -->
-      <div id="payload-output" class="order-2 md:order-1 overflow-y-auto p-4"></div>
+      <!-- Left: title bar + payload -->
+      <div class="order-2 md:order-1 flex flex-col overflow-hidden">
+        <div id="active-token-title" class="hidden px-4 py-2 border-b border-gray-800 flex-shrink-0">
+          <h2 id="active-token-title-text" class="text-sm font-semibold text-gray-100"></h2>
+        </div>
+        <div id="payload-output" class="flex-1 overflow-y-auto p-4"></div>
+      </div>
       <!-- Right: input → header → signature -->
       <div class="order-1 md:order-2 md:border-l border-b md:border-b-0 border-gray-800 p-4 flex flex-col gap-3 overflow-y-auto">
         <div class="flex items-center md:hidden">
@@ -64,6 +70,8 @@ const tokenBar = document.getElementById('token-bar')!
 const tokenPreview = document.getElementById('token-preview')!
 const copyBtn = document.getElementById('copy-btn') as HTMLButtonElement
 const clearBtn = document.getElementById('clear-btn')!
+const activeTitleEl = document.getElementById('active-token-title')!
+const activeTitleText = document.getElementById('active-token-title-text')!
 
 const containers = {
   payload: document.getElementById('payload-output')!,
@@ -76,6 +84,17 @@ const historySearch = document.getElementById('history-search') as HTMLInputElem
 
 let currentRaw = ''
 let currentQuery = ''
+let activeEntryId: string | null = null
+
+function updateTitleDisplay(entry: HistoryEntry | null): void {
+  if (entry?.name) {
+    activeTitleText.textContent = entry.name
+    activeTitleEl.classList.remove('hidden')
+  } else {
+    activeTitleEl.classList.add('hidden')
+    activeTitleText.textContent = ''
+  }
+}
 
 function showTokenBar(raw: string): void {
   currentRaw = raw
@@ -102,15 +121,18 @@ copyBtn.addEventListener('click', () => {
 })
 
 clearBtn.addEventListener('click', () => {
+  activeEntryId = null
   input.value = ''
   hideTokenBar()
   clearDecodeOutput(containers)
+  updateTitleDisplay(null)
 })
 
 document.addEventListener('paste', (e) => {
   if (tokenBar.classList.contains('flex')) {
     const text = e.clipboardData?.getData('text') ?? ''
     if (text.trim()) {
+      activeEntryId = null
       hideTokenBar()
       input.value = text
       handleInput()
@@ -119,16 +141,23 @@ document.addEventListener('paste', (e) => {
 })
 
 function refreshHistory(savedId?: string): void {
+  const history = getHistory()
+  const activeEntry = activeEntryId ? (history.find((e) => e.id === activeEntryId) ?? null) : null
+  updateTitleDisplay(activeEntry)
   renderHistoryPanel(
     historyList,
-    getHistory(),
+    history,
     {
-      onSelect(raw) {
+      onSelect(id, raw) {
+        activeEntryId = id
         hideTokenBar()
         input.value = raw
         handleInput()
       },
       onDelete(id) {
+        if (id === activeEntryId) {
+          activeEntryId = null
+        }
         deleteFromHistory(id)
         refreshHistory()
       },
@@ -142,6 +171,7 @@ function refreshHistory(savedId?: string): void {
       },
     },
     savedId,
+    activeEntryId,
   )
 }
 
@@ -172,6 +202,7 @@ function handleSearch(): void {
     historySearch.value = ''
     currentQuery = ''
     showDecodeView()
+    activeEntryId = null
     hideTokenBar()
     input.value = raw
     handleInput()
@@ -196,6 +227,9 @@ function handleInput(): void {
   }
 }
 
-input.addEventListener('input', handleInput)
+input.addEventListener('input', () => {
+  activeEntryId = null
+  handleInput()
+})
 historySearch.addEventListener('input', handleSearch)
 refreshHistory()
