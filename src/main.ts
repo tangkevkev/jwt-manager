@@ -1,8 +1,8 @@
 import './style.css'
 import { decodeJwt } from './lib/decode'
-import { saveToHistory, getHistory, deleteFromHistory, saveEntry, renameEntry } from './lib/history-store'
+import { saveToHistory, getHistory, deleteFromHistory, saveEntry, renameEntry, updateLabels } from './lib/history-store'
 import type { HistoryEntry } from './lib/history-store'
-import { renderDecodeOutput, clearDecodeOutput } from './ui/decode-view'
+import { renderDecodeOutput, clearDecodeOutput, renderLabelEditor, clearLabelEditor } from './ui/decode-view'
 import { renderHistoryPanel } from './ui/history-panel'
 import { searchHistory } from './lib/history-search'
 import { renderSearchResults } from './ui/search-results-view'
@@ -57,6 +57,7 @@ app.innerHTML = `
             <p class="text-xs text-gray-600">Paste anywhere to replace</p>
           </div>
         </div>
+        <div id="label-editor"></div>
         <div id="header-output"></div>
         <div id="signature-output"></div>
       </div>
@@ -78,6 +79,7 @@ const containers = {
   header: document.getElementById('header-output')!,
   signature: document.getElementById('signature-output')!,
 }
+const labelEditorEl = document.getElementById('label-editor')!
 
 const historyList = document.getElementById('history-list')!
 const historySearch = document.getElementById('history-search') as HTMLInputElement
@@ -85,6 +87,20 @@ const historySearch = document.getElementById('history-search') as HTMLInputElem
 let currentRaw = ''
 let currentQuery = ''
 let activeEntryId: string | null = null
+let filterLabel: string | null = null
+
+function refreshLabelEditor(): void {
+  const history = getHistory()
+  const entry = activeEntryId ? history.find((e) => e.id === activeEntryId) ?? null : null
+  if (entry) {
+    renderLabelEditor(labelEditorEl, entry, history, (id, labels) => {
+      updateLabels(id, labels)
+      refreshHistory()
+    })
+  } else {
+    clearLabelEditor(labelEditorEl)
+  }
+}
 
 function updateTitleDisplay(entry: HistoryEntry | null): void {
   if (entry?.name) {
@@ -125,6 +141,7 @@ clearBtn.addEventListener('click', () => {
   input.value = ''
   hideTokenBar()
   clearDecodeOutput(containers)
+  clearLabelEditor(labelEditorEl)
   updateTitleDisplay(null)
 })
 
@@ -169,10 +186,20 @@ function refreshHistory(savedId?: string): void {
         renameEntry(id, name)
         refreshHistory()
       },
+      onLabelFilter(label) {
+        filterLabel = label
+        refreshHistory()
+      },
+      onClearFilter() {
+        filterLabel = null
+        refreshHistory()
+      },
     },
     savedId,
     activeEntryId,
+    filterLabel,
   )
+  refreshLabelEditor()
 }
 
 function showDecodeView(): void {

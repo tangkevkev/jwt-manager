@@ -24,11 +24,12 @@ export function searchHistory(entries: HistoryEntry[], query: string): SearchRes
 
   for (const entry of entries) {
     const nameMatch = (entry.name ?? entry.label).toLowerCase().includes(lower)
+    const labelMatch = entry.labels.some((l) => l.toLowerCase().includes(lower))
     const decoded = decodeJwt(entry.raw)
     const payloadText = decoded.ok ? JSON.stringify(decoded.value.payload, null, 2) : ''
     const payloadMatch = payloadText.toLowerCase().includes(lower)
 
-    if (nameMatch || payloadMatch) {
+    if (nameMatch || labelMatch || payloadMatch) {
       results.push({
         entry,
         snippet: payloadMatch ? extractSnippet(payloadText, query) : '',

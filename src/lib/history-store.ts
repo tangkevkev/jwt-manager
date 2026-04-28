@@ -10,6 +10,7 @@ export interface HistoryEntry {
   iat?: number
   saved: boolean
   name?: string
+  labels: string[]
 }
 
 const STORAGE_KEY = 'jwt-manager-history'
@@ -26,7 +27,7 @@ function load(): HistoryEntry[] {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (!stored) return []
     const parsed = JSON.parse(stored) as HistoryEntry[]
-    return parsed.map((e) => ({ ...e, saved: e.saved ?? false, addedAt: e.addedAt ?? e.savedAt }))
+    return parsed.map((e) => ({ ...e, saved: e.saved ?? false, addedAt: e.addedAt ?? e.savedAt, labels: e.labels ?? [] }))
   } catch {
     return []
   }
@@ -55,6 +56,7 @@ export function saveToHistory(jwt: DecodedJwt): HistoryEntry {
     iat: typeof jwt.payload.iat === 'number' ? jwt.payload.iat : undefined,
     saved: existing ? existing.saved : false,
     name: existing ? existing.name : undefined,
+    labels: existing ? existing.labels : [],
   }
   if (existingIndex >= 0) {
     entries[existingIndex] = entry
@@ -84,5 +86,13 @@ export function renameEntry(id: string, name: string): void {
   const index = entries.findIndex((e) => e.id === id)
   if (index < 0) return
   entries[index] = { ...entries[index], name: name.trim() }
+  persist(entries)
+}
+
+export function updateLabels(id: string, labels: string[]): void {
+  const entries = load()
+  const index = entries.findIndex((e) => e.id === id)
+  if (index < 0) return
+  entries[index] = { ...entries[index], labels }
   persist(entries)
 }

@@ -16,6 +16,7 @@ function makeEntry(overrides: Partial<HistoryEntry> & { raw: string }): HistoryE
     savedAt: now,
     addedAt: now,
     saved: false,
+    labels: [],
     ...overrides,
   }
 }

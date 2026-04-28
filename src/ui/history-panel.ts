@@ -1,10 +1,13 @@
 import type { HistoryEntry } from '../lib/history-store'
+import { getLabelColor } from '../lib/label-color'
 
 interface Callbacks {
   onSelect: (id: string, raw: string) => void
   onDelete: (id: string) => void
   onSave: (id: string) => void
   onRename: (id: string, name: string) => void
+  onLabelFilter: (label: string) => void
+  onClearFilter: () => void
 }
 
 function escapeHtml(str: string): string {
@@ -16,7 +19,21 @@ function expiryBadge(entry: HistoryEntry): string {
   const expired = entry.exp * 1000 < Date.now()
   return expired
     ? '<span class="text-xs px-1.5 py-0.5 rounded bg-red-900 text-red-300">Expired</span>'
-    : '<span class="text-xs px-1.5 py-0.5 rounded bg-green-900 text-green-300">Valid</span>'
+    : ''
+}
+
+function labelChips(entry: HistoryEntry): string {
+  if (!entry.labels.length) return ''
+  const chips = entry.labels
+    .map((lbl) => {
+      const { bg, text } = getLabelColor(lbl)
+      return `<span
+        data-filter-label="${escapeHtml(lbl)}"
+        class="text-xs px-1.5 py-0.5 rounded cursor-pointer ${bg} ${text} hover:opacity-80 transition-opacity"
+      >${escapeHtml(lbl)}</span>`
+    })
+    .join('')
+  return `<div class="flex flex-wrap gap-1 mt-1">${chips}</div>`
 }
 
 function formatDate(ts: number): string {
@@ -65,6 +82,7 @@ function renderEntry(entry: HistoryEntry, isNew = false, isActive = false): stri
             }
             ${expiryBadge(entry)}
           </div>
+          ${labelChips(entry)}
           <span class="text-xs text-gray-500">${formatDate(entry.addedAt ?? entry.savedAt)}</span>
         </div>
         <button
@@ -87,6 +105,7 @@ function renderEntry(entry: HistoryEntry, isNew = false, isActive = false): stri
           <span class="text-sm text-gray-400 break-words">${escapeHtml(displayLabel)}</span>
           ${expiryBadge(entry)}
         </div>
+        ${labelChips(entry)}
         <span class="text-xs text-gray-600">${formatDate(entry.addedAt ?? entry.savedAt)}</span>
       </div>
       <button
@@ -111,13 +130,31 @@ function sectionHeader(title: string): string {
   </div>`
 }
 
+function filterIndicator(label: string): string {
+  const { bg, text } = getLabelColor(label)
+  return `<div class="px-3 py-2 border-b border-gray-800 flex items-center gap-2 bg-gray-900">
+    <span class="text-xs text-gray-400">Filtered by:</span>
+    <span class="text-xs px-1.5 py-0.5 rounded ${bg} ${text}">${escapeHtml(label)}</span>
+    <button
+      data-clear-filter
+      class="ml-auto text-xs text-gray-500 hover:text-gray-200 px-1.5 py-0.5 rounded hover:bg-gray-800 transition-colors"
+      aria-label="Clear filter"
+    >✕ Clear</button>
+  </div>`
+}
+
 export function renderHistoryPanel(
   container: HTMLElement,
   entries: HistoryEntry[],
   callbacks: Callbacks,
   newlySavedId?: string,
   activeEntryId?: string | null,
+  filterLabel?: string | null,
 ): void {
+  const filtered = filterLabel
+    ? entries.filter((e) => e.labels.includes(filterLabel))
+    : entries
+
   if (entries.length === 0) {
     container.innerHTML = `
       <div class="p-6 text-center text-gray-600 text-sm">
@@ -128,10 +165,13 @@ export function renderHistoryPanel(
     return
   }
 
-  const saved = entries.filter((e) => e.saved)
-  const recent = entries.filter((e) => !e.saved)
+  const saved = filtered.filter((e) => e.saved)
+  const recent = filtered.filter((e) => !e.saved)
 
   let html = ''
+  if (filterLabel) {
+    html += filterIndicator(filterLabel)
+  }
   if (saved.length > 0) {
     html += sectionHeader('Saved')
     html += saved.map((e) => renderEntry(e, e.id === newlySavedId, e.id === activeEntryId)).join('')
@@ -140,7 +180,18 @@ export function renderHistoryPanel(
     html += sectionHeader('Recent')
     html += recent.map((e) => renderEntry(e, false, e.id === activeEntryId)).join('')
   }
+  if (filterLabel && saved.length === 0 && recent.length === 0) {
+    html += `<div class="p-6 text-center text-gray-600 text-sm">No tokens with this label.</div>`
+  }
   container.innerHTML = html
+
+  const clearFilterBtn = container.querySelector<HTMLElement>('[data-clear-filter]')
+  if (clearFilterBtn) {
+    clearFilterBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      callbacks.onClearFilter()
+    })
+  }
 
   container.querySelectorAll<HTMLElement>('[data-id]').forEach((el) => {
     const id = el.dataset.id!
@@ -165,6 +216,11 @@ export function renderHistoryPanel(
           renameInput.focus()
           renameInput.select()
         }
+        return
+      }
+      const filterTarget = (target as HTMLElement).closest<HTMLElement>('[data-filter-label]')
+      if (filterTarget) {
+        callbacks.onLabelFilter(filterTarget.dataset.filterLabel!)
         return
       }
       callbacks.onSelect(entry.id, entry.raw)

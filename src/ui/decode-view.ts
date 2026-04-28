@@ -1,5 +1,7 @@
 import type { DecodeResult } from '../lib/decode'
 import { formatExpiry } from '../lib/decode'
+import type { HistoryEntry } from '../lib/history-store'
+import { getLabelColor, getUsedLabels } from '../lib/label-color'
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -70,6 +72,125 @@ export function renderDecodeOutput(containers: DecodeContainers, result: DecodeR
     `<p class="text-xs font-mono text-gray-400 break-all">${escapeHtml(signature)}</p>`,
     'Not Verified',
   )
+}
+
+export function renderLabelEditor(
+  container: HTMLElement,
+  entry: HistoryEntry,
+  allEntries: HistoryEntry[],
+  onUpdate: (id: string, labels: string[]) => void,
+): void {
+  const usedLabels = getUsedLabels(allEntries)
+
+  function render(currentLabels: string[]): void {
+    const chips = currentLabels
+      .map((lbl) => {
+        const { bg, text } = getLabelColor(lbl)
+        return `<span class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded ${bg} ${text}">
+          ${escapeHtml(lbl)}
+          <button data-remove-label="${escapeHtml(lbl)}" class="hover:opacity-70 leading-none" aria-label="Remove label ${escapeHtml(lbl)}">×</button>
+        </span>`
+      })
+      .join('')
+
+    container.innerHTML = `
+      <div class="rounded-lg border border-gray-800 mb-4">
+        <div class="flex items-center gap-2 px-4 py-2 bg-gray-900 border-b border-gray-800">
+          <span class="text-xs font-semibold uppercase tracking-wider text-gray-600">Labels</span>
+        </div>
+        <div class="px-4 py-3 bg-gray-950">
+          <div class="flex flex-wrap gap-1.5 mb-2 min-h-[1.5rem]">${chips}</div>
+          <div class="relative">
+            <input
+              id="label-input"
+              type="text"
+              placeholder="Add label…"
+              autocomplete="off"
+              class="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500"
+            />
+            <ul
+              id="label-suggestions"
+              class="hidden absolute z-10 left-0 right-0 mt-0.5 bg-gray-900 border border-gray-700 rounded shadow-lg max-h-40 overflow-y-auto"
+            ></ul>
+          </div>
+        </div>
+      </div>
+    `
+
+    const input = container.querySelector<HTMLInputElement>('#label-input')!
+    const suggestionsList = container.querySelector<HTMLUListElement>('#label-suggestions')!
+
+    function addLabel(val: string): void {
+      const trimmed = val.trim().replace(/,$/, '').trim()
+      if (!trimmed || currentLabels.includes(trimmed)) {
+        input.value = ''
+        hideSuggestions()
+        return
+      }
+      const next = [...currentLabels, trimmed]
+      onUpdate(entry.id, next)
+      render(next)
+    }
+
+    function showSuggestions(query: string): void {
+      const filtered = usedLabels.filter(
+        (l) => l.toLowerCase().includes(query.toLowerCase()) && !currentLabels.includes(l),
+      )
+      if (!filtered.length) {
+        hideSuggestions()
+        return
+      }
+      suggestionsList.innerHTML = filtered
+        .map(
+          (lbl) =>
+            `<li data-suggestion="${escapeHtml(lbl)}" class="px-3 py-1.5 text-xs text-gray-200 cursor-pointer hover:bg-gray-800">${escapeHtml(lbl)}</li>`,
+        )
+        .join('')
+      suggestionsList.classList.remove('hidden')
+    }
+
+    function hideSuggestions(): void {
+      suggestionsList.classList.add('hidden')
+    }
+
+    input.addEventListener('focus', () => showSuggestions(input.value))
+    input.addEventListener('input', () => showSuggestions(input.value))
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault()
+        addLabel(input.value)
+      } else if (e.key === 'Escape') {
+        hideSuggestions()
+      }
+    })
+    input.addEventListener('blur', () => {
+      setTimeout(hideSuggestions, 150)
+    })
+
+    suggestionsList.addEventListener('mousedown', (e) => {
+      const li = (e.target as HTMLElement).closest<HTMLElement>('[data-suggestion]')
+      if (li) {
+        e.preventDefault()
+        addLabel(li.dataset.suggestion!)
+      }
+    })
+
+    container.querySelectorAll<HTMLElement>('[data-remove-label]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const lbl = btn.dataset.removeLabel!
+        const next = currentLabels.filter((l) => l !== lbl)
+        onUpdate(entry.id, next)
+        render(next)
+      })
+    })
+  }
+
+  render(entry.labels)
+}
+
+export function clearLabelEditor(container: HTMLElement): void {
+  container.innerHTML = ''
 }
 
 export function clearDecodeOutput(containers: DecodeContainers): void {
